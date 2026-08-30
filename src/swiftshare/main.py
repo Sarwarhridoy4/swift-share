@@ -20,7 +20,23 @@ app.include_router(files.router, prefix="/api/files", tags=["files"])
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(shares.router, prefix="/api/shares", tags=["shares"])
 
-static_dir = Path(__file__).parent.parent.parent / "static"
+
+def _find_static_dir() -> Path:
+    candidates = [
+        Path(__file__).parent.parent.parent / "static",
+        Path(__file__).parent.parent / "static",
+        Path(__file__).parent / "static",
+        Path.cwd() / "static",
+        Path("/usr/share/swiftshare/static"),
+        Path("/usr/lib/swiftshare/static"),
+    ]
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+    return Path.cwd() / "static"
+
+
+static_dir = _find_static_dir()
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
