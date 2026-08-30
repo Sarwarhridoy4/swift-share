@@ -7,7 +7,7 @@ Build a beautiful, easy-to-use local network file sharing web application with a
 ### Technology Stack
 
 - **Backend**: Python 3.11+ with FastAPI + UV for dependency management
-- **Frontend**: Single-page HTML/CSS/JS with modern design (no build step required)
+- **Frontend**: Single-page HTML/CSS/JS, styled with Tailwind CSS v4 (built via Bun; `src/tailwind/input.css` → `static/css/tailwind.css`). The compiled CSS is committed, so the server runs with no frontend build step.
 - **Communication**: REST API + Server-Sent Events for real-time progress
 - **File Storage**: Local filesystem with configurable shared directory
 

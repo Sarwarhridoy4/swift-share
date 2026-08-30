@@ -1,0 +1,16 @@
+{
+  "name": "swiftshare",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/tailwind/input.css -o ./static/css/tailwind.css",
+    "watch:css": "tailwindcss -i ./src/tailwind/input.css -o ./static/css/tailwind.css --watch",
+    "build": "bun run build:css",
+    "dev": "bun run watch:css"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

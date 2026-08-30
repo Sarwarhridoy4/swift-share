@@ -80,27 +80,51 @@ Example:
 SHARED_DIR=/path/to/my/files PORT=8080 uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8080
 ```
 
+## Frontend (Tailwind via Bun)
+
+The UI is styled with [Tailwind CSS](https://tailwindcss.com) (v4), built with [Bun](https://bun.sh).
+The compiled stylesheet (`static/css/tailwind.css`) is committed, so the server works with
+no frontend build step. Only rebuild it when you change the UI.
+
+```bash
+# Install frontend tooling (needs Bun)
+bun install
+
+# Build the CSS once
+bun run build
+
+# Or watch for changes during development
+bun run dev
+```
+
+Source styles live in `src/tailwind/input.css` (Tailwind directives, theme tokens, and the
+custom utilities for the file list, context menu, and toasts).
+
 ## Project structure
 
 ```
 Portable_File_Transfer/
 ├── AGENTS.md
 ├── pyproject.toml
+├── package.json             # Bun/Tailwind frontend tooling
+├── bun.lock                 # Bun lockfile
 ├── README.md
 ├── src/
-│   └── swiftshare/
-│       ├── main.py            # FastAPI app, static serving, /api/ip
-│       ├── config.py          # Configuration (pydantic-settings)
-│       ├── models.py          # Pydantic models
-│       ├── file_manager.py    # File operations (browse/upload/download/delete)
-│       ├── share_manager.py   # Share-link logic (expiry, passwords, counts)
-│       └── routers/
-│           ├── files.py       # File API routes
-│           ├── upload.py      # Upload API route
-│           └── shares.py      # Share API routes
+│   ├── swiftshare/          # FastAPI backend
+│   │   ├── main.py            # FastAPI app, static serving, /api/ip
+│   │   ├── config.py          # Configuration (pydantic-settings)
+│   │   ├── models.py          # Pydantic models
+│   │   ├── file_manager.py    # File operations (browse/upload/download/delete)
+│   │   ├── share_manager.py   # Share-link logic (expiry, passwords, counts)
+│   │   └── routers/
+│   │       ├── files.py       # File API routes
+│   │       ├── upload.py      # Upload API route
+│   │       └── shares.py      # Share API routes
+│   └── tailwind/
+│       └── input.css          # Tailwind source (theme + component styles)
 ├── static/
 │   ├── index.html
-│   ├── css/style.css
+│   ├── css/tailwind.css       # Compiled Tailwind output (committed)
 │   └── js/app.js
 └── tests/test_api.py
 ```

@@ -83,7 +83,7 @@
                 ? `<button class="file-action" data-act="download-folder" title="Download folder as zip">⬇️</button>`
                 : `<button class="file-action" data-act="download" title="Download">⬇️</button>`;
             return `
-                <div class="file-item" data-path="${file.path}" data-name="${file.name}" data-is-dir="${file.is_dir}">
+                <div class="file-item group" data-path="${file.path}" data-name="${file.name}" data-is-dir="${file.is_dir}">
                     <div class="file-actions">
                         ${downloadAction}
                         <button class="file-action" data-act="copy-link" title="Copy direct link">🔗</button>
