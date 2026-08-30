@@ -9,6 +9,8 @@
         searchQuery: '',
     };
 
+    let transferTotal = 0;
+
     const API_BASE = window.location.origin;
 
     function init() {
@@ -212,38 +214,44 @@
         }
     }
 
-    async function downloadFile(path) {
+    async function streamDownload(url, displayName) {
         try {
-            const res = await fetch(`${API_BASE}/api/files/download?path=${encodeURIComponent(path)}`);
+            const res = await fetch(url);
             if (!res.ok) throw new Error('Download failed');
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = res.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'download';
-            a.click();
-            window.URL.revokeObjectURL(url);
+            const total = parseInt(res.headers.get('Content-Length') || '0', 10);
+            const reader = res.body.getReader();
+            let received = 0;
+            const chunks = [];
+            showTransferUI(displayName, total);
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                received += value.length;
+                updateTransferProgress(received, total);
+            }
+            const blob = new Blob(chunks, { type: res.headers.get('Content-Type') || 'application/octet-stream' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = displayName;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
             showToast('Download started', 'success');
         } catch (e) {
             showToast(e.message, 'error');
+        } finally {
+            hideTransferUI();
         }
     }
 
+    async function downloadFile(path) {
+        const name = path.split('/').pop() || 'download';
+        await streamDownload(`${API_BASE}/api/files/download?path=${encodeURIComponent(path)}`, name);
+    }
+
     async function downloadFolder(path) {
-        try {
-            const res = await fetch(`${API_BASE}/api/files/download-folder?path=${encodeURIComponent(path)}`);
-            if (!res.ok) throw new Error('Download failed');
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = res.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'download.zip';
-            a.click();
-            window.URL.revokeObjectURL(url);
-            showToast('Download started', 'success');
-        } catch (e) {
-            showToast(e.message, 'error');
-        }
+        const name = (path.split('/').pop() || 'folder') + '.zip';
+        await streamDownload(`${API_BASE}/api/files/download-folder?path=${encodeURIComponent(path)}`, name);
     }
 
     async function previewFile(path) {
@@ -376,31 +384,61 @@
         }, 3000);
     }
 
+    function showTransferUI(name, total) {
+        transferTotal = total || 0;
+        document.getElementById('transferName').textContent = name;
+        document.getElementById('transferPercent').textContent = '0%';
+        document.getElementById('transferMeta').textContent = `0 B / ${formatSize(transferTotal)}`;
+        document.getElementById('transferBar').style.width = '0%';
+        document.getElementById('transferPanel').classList.remove('hidden');
+    }
+
+    function updateTransferProgress(loaded, total) {
+        const t = total || transferTotal || 0;
+        const pct = t > 0 ? Math.min(100, Math.round((loaded / t) * 100)) : 0;
+        document.getElementById('transferPercent').textContent = pct + '%';
+        document.getElementById('transferBar').style.width = pct + '%';
+        document.getElementById('transferMeta').textContent = `${formatSize(loaded)} / ${formatSize(t)}`;
+    }
+
+    function hideTransferUI() {
+        document.getElementById('transferPanel').classList.add('hidden');
+    }
+
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    async function uploadFiles(files) {
+    async     function uploadFiles(files) {
         const formData = new FormData();
         formData.append('path', state.currentPath);
         for (const file of files) {
             formData.append('file', file);
         }
 
-        showToast('Uploading files...', 'success');
-        try {
-            const res = await fetch(`${API_BASE}/api/upload/`, {
-                method: 'POST',
-                body: formData,
-            });
-            if (!res.ok) throw new Error('Upload failed');
-            showToast('Upload complete', 'success');
-            loadFiles();
-        } catch (e) {
-            showToast(e.message, 'error');
-        }
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE}/api/upload/`);
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) updateTransferProgress(e.loaded, e.total);
+        };
+        xhr.onload = () => {
+            hideTransferUI();
+            if (xhr.status >= 200 && xhr.status < 300) {
+                showToast('Upload complete', 'success');
+                loadFiles();
+            } else {
+                showToast('Upload failed', 'error');
+            }
+        };
+        xhr.onerror = () => {
+            hideTransferUI();
+            showToast('Upload failed', 'error');
+        };
+
+        showTransferUI(`Uploading ${files.length} file(s)`, null);
+        xhr.send(formData);
     }
 
     function setupEventListeners() {
