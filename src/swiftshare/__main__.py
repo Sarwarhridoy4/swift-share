@@ -29,7 +29,8 @@ def main():
     parser.add_argument("--backlog", type=int, default=2048, help="Socket backlog")
     parser.add_argument("--limit-concurrency", type=int, default=None, help="Max concurrent requests")
     parser.add_argument("--limit-max-requests", type=int, default=None, help="Max requests before worker restart")
-    parser.add_argument("--timeout-keep-alive", type=int, default=5, help="Keep-alive timeout in seconds")
+    parser.add_argument("--timeout-keep-alive", type=int, default=300, help="Keep-alive timeout in seconds")
+    parser.add_argument("--timeout-graceful-shutdown", type=int, default=600, help="Graceful shutdown timeout in seconds")
     parser.add_argument("--no-compression", action="store_true", help="Disable response compression")
 
     args = parser.parse_args()
@@ -64,6 +65,7 @@ def main():
         limit_concurrency=args.limit_concurrency,
         limit_max_requests=args.limit_max_requests,
         timeout_keep_alive=args.timeout_keep_alive,
+        timeout_graceful_shutdown=args.timeout_graceful_shutdown,
     )
 
     if not args.no_compression:

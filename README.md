@@ -23,7 +23,7 @@ network — phone, tablet, or laptop.
 - **Dark / light theme** — toggle in the header; preference is remembered.
 - **Local-network friendly** — auto-detects the machine's LAN IP, shows the connection URL, and serves a QR code for quick mobile pairing (see `/api/ip`).
 - **Modern UI** — clean, responsive design with toast notifications, progress feedback, and smooth animations.
-- **Large file support** — chunked Socket.IO transfers with streaming I/O and stable progress for large videos and folders.
+- **Large file support** — chunked Socket.IO uploads and streaming HTTP downloads with stable progress for large videos and folders, up to 100 GB.
 
 ## Screenshots
 
@@ -46,7 +46,7 @@ network — phone, tablet, or laptop.
 - **Search** — Type in the search box to instantly filter the current folder by name.
 - **Theme** — Toggle light/dark with the 🌙 button; your choice is saved in the browser.
 
-> Transfers use Socket.IO for real-time progress. Uploads and downloads are chunked, so large files and folders transfer reliably without blocking the UI.
+> Uploads use Socket.IO for real-time progress and chunked delivery. Downloads are streamed over HTTP with Socket.IO progress events, so the browser can save large files directly to disk without loading them entirely into memory.
 
 ## How it works
 
@@ -95,7 +95,7 @@ Settings can be overridden with environment variables (or a `.env` file):
 | `SHARED_DIR`           | `./shared`         | Home directory shown in the file browser      |
 | `PORT`                 | `8000`             | Server port                                   |
 | `HOST`                 | `0.0.0.0`          | Bind address                                  |
-| `MAX_UPLOAD_SIZE`      | `2147483648` (2GB) | Maximum upload size in bytes                  |
+| `MAX_UPLOAD_SIZE`      | `107374182400` (100GB) | Maximum upload size in bytes                  |
 | `ENABLE_AUTH`          | `false`            | Enable basic auth (reserved for future use)   |
 | `SHARE_EXPIRY_HOURS`   | `24`               | Default share link lifetime in hours          |
 
