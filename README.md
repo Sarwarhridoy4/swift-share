@@ -15,14 +15,15 @@ network — phone, tablet, or laptop.
 - **File browser** — browse directories and files with breadcrumb navigation, grid/list views, and file-type icons.
 - **Drag & drop upload** — drop files anywhere on the page to upload them to the current folder.
 - **Download** — download individual files, or entire folders as a ZIP archive.
-- **Create / delete** — make new folders and delete files or folders from the UI.
+- **Create / delete** — make new folders with a modal form, or delete files or folders from the UI.
 - **Preview** — inline preview for images, video, audio, and PDFs, plus text-file preview.
 - **Sharing** — generate shareable links for any file with optional expiry and password protection, and track download counts.
 - **Search** — live filter of the current folder by name.
-- **Live transfer progress** — real-time progress bar for both uploads and downloads, showing percentage and transferred size (bytes sent/received).
+- **Live transfer progress** — real-time progress bar for both uploads and downloads via Socket.IO, showing percentage and transferred size.
 - **Dark / light theme** — toggle in the header; preference is remembered.
 - **Local-network friendly** — auto-detects the machine's LAN IP, shows the connection URL, and serves a QR code for quick mobile pairing (see `/api/ip`).
 - **Modern UI** — clean, responsive design with toast notifications, progress feedback, and smooth animations.
+- **Large file support** — chunked Socket.IO transfers with streaming I/O and stable progress for large videos and folders.
 
 ## Screenshots
 
@@ -45,7 +46,7 @@ network — phone, tablet, or laptop.
 - **Search** — Type in the search box to instantly filter the current folder by name.
 - **Theme** — Toggle light/dark with the 🌙 button; your choice is saved in the browser.
 
-> The progress bars use native browser streaming (XHR upload events for uploads, `fetch` streaming for downloads) against the existing HTTP API — no extra setup or WebSocket server is required.
+> Transfers use Socket.IO for real-time progress. Uploads and downloads are chunked, so large files and folders transfer reliably without blocking the UI.
 
 ## How it works
 
@@ -135,11 +136,13 @@ Portable_File_Transfer/
 ├── README.md
 ├── src/
 │   ├── swiftshare/          # FastAPI backend
+│   │   ├── __main__.py       # CLI entrypoint
 │   │   ├── main.py            # FastAPI app, static serving, /api/ip
 │   │   ├── config.py          # Configuration (pydantic-settings)
 │   │   ├── models.py          # Pydantic models
 │   │   ├── file_manager.py    # File operations (browse/upload/download/delete)
 │   │   ├── share_manager.py   # Share-link logic (expiry, passwords, counts)
+│   │   ├── socketio_server.py # Socket.IO transfer events
 │   │   └── routers/
 │   │       ├── files.py       # File API routes
 │   │       ├── upload.py      # Upload API route
@@ -173,6 +176,8 @@ All file operations are rooted at the `shared/` directory.
 | GET    | `/api/shares/{id}`             | Resolve a share (optional `password`)|
 | DELETE | `/api/shares/{id}`             | Delete a share                       |
 | GET    | `/api/ip`                      | LAN IP + port for mobile pairing     |
+
+Socket.IO is mounted at `/socket.io` and is used for real-time transfer progress and chunked file transfers.
 
 ## Development
 

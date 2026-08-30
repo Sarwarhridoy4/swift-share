@@ -64,7 +64,6 @@ def main():
         limit_concurrency=args.limit_concurrency,
         limit_max_requests=args.limit_max_requests,
         timeout_keep_alive=args.timeout_keep_alive,
-        ws="none",
     )
 
     if not args.no_compression:

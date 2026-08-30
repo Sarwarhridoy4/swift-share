@@ -10,6 +10,8 @@
     };
 
     let transferTotal = 0;
+    let socket = null;
+    const CHUNK_SIZE = 256 * 1024;
 
     const API_BASE = window.location.origin;
 
@@ -19,6 +21,7 @@
         loadFiles();
         setupEventListeners();
         setupKeyboardShortcuts();
+        setupSocketIO();
     }
 
     function applyTheme(theme) {
@@ -185,8 +188,16 @@
         });
     }
 
-    async function createNewFolder() {
-        const name = prompt('Enter folder name:');
+    function openNewFolderModal() {
+        const input = document.getElementById('newFolderName');
+        input.value = '';
+        document.getElementById('newFolderModal').style.display = 'flex';
+        setTimeout(() => input.focus(), 0);
+    }
+
+    async function createNewFolder(e) {
+        if (e) e.preventDefault();
+        const name = document.getElementById('newFolderName').value.trim();
         if (!name) return;
         try {
             const res = await fetch(`${API_BASE}/api/files/mkdir`, {
@@ -196,6 +207,7 @@
             });
             if (!res.ok) throw new Error('Failed to create folder');
             showToast('Folder created', 'success');
+            document.getElementById('newFolderModal').style.display = 'none';
             loadFiles();
         } catch (e) {
             showToast(e.message, 'error');
@@ -215,33 +227,62 @@
     }
 
     async function streamDownload(url, displayName) {
-        try {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error('Download failed');
-            const total = parseInt(res.headers.get('Content-Length') || '0', 10);
-            const reader = res.body.getReader();
-            let received = 0;
-            const chunks = [];
-            showTransferUI(displayName, total);
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                chunks.push(value);
-                received += value.length;
-                updateTransferProgress(received, total);
+        if (!isSocketIOAvailable()) {
+            showToast('SocketIO not connected, cannot download', 'error');
+            return;
+        }
+        const path = new URL(url).searchParams.get('path');
+        if (!path) {
+            showToast('Download failed', 'error');
+            return;
+        }
+        const isDir = url.includes('download-folder');
+        const event = isDir ? 'download-folder:request' : 'download:request';
+        const result = await new Promise((resolve, reject) => {
+            socket.emit(event, {path}, (ack) => {
+                if (ack && ack.error) reject(new Error(ack.error));
+                else resolve(ack);
+            });
+        });
+        if (result && result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        const transferId = result.transfer_id;
+        const chunks = [];
+        socket.off('transfer:started');
+        socket.off('transfer:progress');
+        socket.off('transfer:completed');
+        socket.off('transfer:error');
+        socket.off('download:chunk');
+        socket.off('download:complete');
+
+        socket.on('transfer:started', (data) => {
+            showTransferUI(data.filename, data.total);
+            updateTransferProgress(0, data.total);
+        });
+        socket.on('transfer:progress', (data) => {
+            updateTransferProgress(data.loaded, data.total);
+        });
+        socket.on('download:chunk', (data) => {
+            if (data.transfer_id === transferId && data.chunk) {
+                chunks.push(data.chunk);
             }
-            const blob = new Blob(chunks, { type: res.headers.get('Content-Type') || 'application/octet-stream' });
+        });
+        socket.on('transfer:completed', () => {
+            const blob = new Blob(chunks, {type: 'application/octet-stream'});
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = displayName;
             link.click();
             setTimeout(() => URL.revokeObjectURL(link.href), 1000);
             showToast('Download started', 'success');
-        } catch (e) {
-            showToast(e.message, 'error');
-        } finally {
+            setTimeout(hideTransferUI, 1000);
+        });
+        socket.on('transfer:error', (data) => {
+            showToast(data.error || 'Download failed', 'error');
             hideTransferUI();
-        }
+        });
     }
 
     async function downloadFile(path) {
@@ -405,50 +446,181 @@
         document.getElementById('transferPanel').classList.add('hidden');
     }
 
+    function setupSocketIO() {
+        try {
+            socket = io();
+            socket.on('connect', () => {
+                console.log('SocketIO connected');
+            });
+            socket.on('transfer:started', (data) => {
+                showTransferUI(data.filename, data.total);
+                updateTransferProgress(0, data.total);
+            });
+            socket.on('transfer:progress', (data) => {
+                updateTransferProgress(data.loaded, data.total);
+            });
+            socket.on('transfer:completed', (data) => {
+                updateTransferProgress(data.total, data.total);
+                showToast('Transfer completed', 'success');
+                setTimeout(hideTransferUI, 1000);
+            });
+            socket.on('transfer:error', (data) => {
+                showToast(data.error || 'Transfer failed', 'error');
+                hideTransferUI();
+            });
+        } catch (e) {
+            console.warn('SocketIO not available, falling back to XHR progress');
+        }
+    }
+
+    function isSocketIOAvailable() {
+        return typeof io !== 'undefined' && socket && socket.connected;
+    }
+
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    async     function uploadFiles(files) {
-        const formData = new FormData();
-        formData.append('path', state.currentPath);
-        for (const file of files) {
-            formData.append('file', file);
+    async function uploadFiles(files) {
+        if (!isSocketIOAvailable()) {
+            showToast('SocketIO not connected, cannot upload', 'error');
+            return;
         }
+        for (const file of files) {
+            await uploadFileSocket(file);
+        }
+    }
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE}/api/upload/`);
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) updateTransferProgress(e.loaded, e.total);
-        };
-        xhr.onload = () => {
-            hideTransferUI();
-            if (xhr.status >= 200 && xhr.status < 300) {
-                showToast('Upload complete', 'success');
-                loadFiles();
-            } else {
-                showToast('Upload failed', 'error');
+    async function uploadFileSocket(file) {
+        const total = file.size;
+        const transferId = 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+
+        const result = await new Promise((resolve, reject) => {
+            socket.emit('upload:start', {
+                path: state.currentPath,
+                filename: file.name,
+                total: total,
+            }, (ack) => {
+                if (ack && ack.error) {
+                    reject(new Error(ack.error));
+                    return;
+                }
+                resolve(ack);
+            });
+        });
+
+        const tid = result.transfer_id || transferId;
+        const chunkSize = CHUNK_SIZE;
+        let offset = 0;
+        const reader = file.stream().getReader();
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                for (let i = 0; i < value.length; i += chunkSize) {
+                    const end = Math.min(i + chunkSize, value.length);
+                    const chunk = value.slice(i, end);
+                    await new Promise((resolve, reject) => {
+                        socket.emit('upload:chunk', {transfer_id: tid, chunk}, (ack) => {
+                            if (ack && ack.error) reject(new Error(ack.error));
+                            else resolve(ack);
+                        });
+                    });
+                    offset += chunk.length;
+                }
             }
-        };
-        xhr.onerror = () => {
-            hideTransferUI();
-            showToast('Upload failed', 'error');
-        };
 
-        showTransferUI(`Uploading ${files.length} file(s)`, null);
-        xhr.send(formData);
+            await new Promise((resolve, reject) => {
+                socket.emit('upload:complete', {transfer_id: tid}, (ack) => {
+                    if (ack && ack.error) reject(new Error(ack.error));
+                    else resolve(ack);
+                });
+            });
+            showToast('Upload complete', 'success');
+            loadFiles();
+        } catch (e) {
+            showToast(e.message || 'Upload failed', 'error');
+        } finally {
+            try {
+                reader.releaseLock();
+            } catch (e) {
+                // ignore
+            }
+        }
+    }
+
+    async function streamDownload(url, displayName) {
+        if (!isSocketIOAvailable()) {
+            showToast('SocketIO not connected, cannot download', 'error');
+            return;
+        }
+        const path = new URL(url).searchParams.get('path');
+        if (!path) {
+            showToast('Download failed', 'error');
+            return;
+        }
+        const isDir = url.includes('download-folder');
+        const event = isDir ? 'download-folder:request' : 'download:request';
+        const result = await new Promise((resolve, reject) => {
+            socket.emit(event, {path}, (ack) => {
+                if (ack && ack.error) reject(new Error(ack.error));
+                else resolve(ack);
+            });
+        });
+        if (result && result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        const transferId = result.transfer_id;
+        const chunks = [];
+        socket.off('transfer:started');
+        socket.off('transfer:progress');
+        socket.off('transfer:completed');
+        socket.off('transfer:error');
+        socket.off('download:chunk');
+        socket.off('download:complete');
+
+        socket.on('transfer:started', (data) => {
+            showTransferUI(data.filename, data.total);
+            updateTransferProgress(0, data.total);
+        });
+        socket.on('transfer:progress', (data) => {
+            updateTransferProgress(data.loaded, data.total);
+        });
+        socket.on('download:chunk', (data) => {
+            if (data.transfer_id === transferId && data.chunk) {
+                chunks.push(data.chunk);
+            }
+        });
+        socket.on('transfer:completed', () => {
+            const blob = new Blob(chunks, {type: 'application/octet-stream'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = displayName;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            showToast('Download started', 'success');
+            setTimeout(hideTransferUI, 1000);
+        });
+        socket.on('transfer:error', (data) => {
+            showToast(data.error || 'Download failed', 'error');
+            hideTransferUI();
+        });
     }
 
     function setupEventListeners() {
         document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-        document.getElementById('newFolderBtn').addEventListener('click', createNewFolder);
+        document.getElementById('newFolderBtn').addEventListener('click', openNewFolderModal);
         document.getElementById('fileInput').addEventListener('change', (e) => {
             if (e.target.files.length) uploadFiles(e.target.files);
         });
         document.getElementById('shareForm').addEventListener('submit', createShare);
         document.getElementById('copyShareLink').addEventListener('click', copyShareLink);
+        document.getElementById('newFolderForm').addEventListener('submit', createNewFolder);
 
         document.getElementById('gridViewBtn').addEventListener('click', () => setViewMode('grid'));
         document.getElementById('listViewBtn').addEventListener('click', () => setViewMode('list'));

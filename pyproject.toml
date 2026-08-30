@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "pydantic-settings>=2.15.0",
     "python-multipart>=0.0.32",
+    "python-socketio>=5.10.0",
     "qrcode>=8.2",
     "uvicorn>=0.52.4",
 ]

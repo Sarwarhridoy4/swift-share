@@ -1,8 +1,10 @@
+import uuid
 from fastapi import APIRouter, HTTPException
 from pathlib import Path
 from ..file_manager import FileManager
 from ..models import FileItem, MkdirRequest
 from ..config import settings
+from ..socketio_server import start_transfer, update_transfer, complete_transfer, fail_transfer
 
 router = APIRouter()
 file_manager = FileManager()
@@ -46,21 +48,35 @@ async def create_directory(req: MkdirRequest):
 
 @router.get("/download")
 async def download_file(path: str):
+    transfer_id = str(uuid.uuid4())
     try:
         name, content = await file_manager.download_file(path)
         from fastapi.responses import Response
+        total = len(content)
+        await start_transfer(transfer_id, name, total)
+        await update_transfer(transfer_id, total, total)
+        await complete_transfer(transfer_id)
         return Response(content=content, media_type="application/octet-stream", headers={"Content-Disposition": f"attachment; filename={name}"})
     except ValueError as e:
+        await fail_transfer(transfer_id, str(e))
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/download-folder")
 async def download_folder(path: str):
+    transfer_id = str(uuid.uuid4())
     try:
-        name, content = await file_manager.download_folder(path)
+        name, zip_buffer = await file_manager.download_folder(path)
         from fastapi.responses import Response
+        zip_buffer.seek(0)
+        content = zip_buffer.read()
+        total = len(content)
+        await start_transfer(transfer_id, name, total)
+        await update_transfer(transfer_id, total, total)
+        await complete_transfer(transfer_id)
         return Response(content=content, media_type="application/zip", headers={"Content-Disposition": f"attachment; filename={name}"})
     except ValueError as e:
+        await fail_transfer(transfer_id, str(e))
         raise HTTPException(status_code=404, detail=str(e))
 
 

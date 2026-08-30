@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from .config import settings
 from .routers import files, upload, shares
+from .socketio_server import socket_app
 
 app = FastAPI(title="Portable File Transfer", version="1.0.0")
 
@@ -19,6 +20,8 @@ app.add_middleware(
 app.include_router(files.router, prefix="/api/files", tags=["files"])
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(shares.router, prefix="/api/shares", tags=["shares"])
+
+app.mount("/socket.io", socket_app)
 
 
 def _find_static_dir() -> Path:
