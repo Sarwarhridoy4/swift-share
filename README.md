@@ -23,6 +23,17 @@ network — phone, tablet, or laptop.
 - **Local-network friendly** — auto-detects the machine's LAN IP, shows the connection URL, and serves a QR code for quick mobile pairing (see `/api/ip`).
 - **Modern UI** — clean, responsive design with toast notifications, progress feedback, and smooth animations.
 
+## Screenshots
+
+<div align="center">
+  <img src="assets/screenshots/screenshot-1.png" alt="SwiftShare file browser" width="800">
+  <p><em>File browser with grid view, breadcrumb navigation, and drag-and-drop upload.</em></p>
+  <img src="assets/screenshots/screenshot-2.png" alt="SwiftShare dark mode" width="800">
+  <p><em>Dark mode with glassmorphism header and redesigned cards.</em></p>
+  <img src="assets/screenshots/screenshot-3.png" alt="SwiftShare share dialog" width="800">
+  <p><em>Share dialog with expiry and password protection.</em></p>
+</div>
+
 ## How it works
 
 - The web app (HTML/CSS/JS in `static/`) is served from the **project source folder**.
