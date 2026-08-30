@@ -1,0 +1,27 @@
+[project]
+name = "swiftshare"
+version = "0.1.0"
+description = "Beautiful local network file sharing web application"
+readme = "README.md"
+authors = [
+    { name = "Sarwar Hossain", email = "sarwarhridoy4@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "fastapi>=0.141.1",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "qrcode>=8.2",
+    "uvicorn>=0.52.4",
+]
+
+[project.scripts]
+swiftshare = "swiftshare.main:app"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
