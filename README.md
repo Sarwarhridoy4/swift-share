@@ -19,6 +19,7 @@ network — phone, tablet, or laptop.
 - **Preview** — inline preview for images, video, audio, and PDFs, plus text-file preview.
 - **Sharing** — generate shareable links for any file with optional expiry and password protection, and track download counts.
 - **Search** — live filter of the current folder by name.
+- **Live transfer progress** — real-time progress bar for both uploads and downloads, showing percentage and transferred size (bytes sent/received).
 - **Dark / light theme** — toggle in the header; preference is remembered.
 - **Local-network friendly** — auto-detects the machine's LAN IP, shows the connection URL, and serves a QR code for quick mobile pairing (see `/api/ip`).
 - **Modern UI** — clean, responsive design with toast notifications, progress feedback, and smooth animations.
@@ -33,6 +34,18 @@ network — phone, tablet, or laptop.
   <img src="assets/screenshots/screenshot-3.png" alt="SwiftShare share dialog" width="800">
   <p><em>Share dialog with expiry and password protection.</em></p>
 </div>
+
+## Usage
+
+- **Browse** — The `shared/` folder is your home directory. Click a folder to open it, or use the breadcrumb (🏠 Home) to jump back. Switch between **grid** and **list** views with the header toggle.
+- **Upload** — Click **Upload**, or drag & drop files anywhere onto the drop zone. A floating progress bar appears at the bottom showing the file name, percentage, and bytes transferred.
+- **Download** — Click the ⬇️ action on a file (or on a folder to get a ZIP archive). Downloads also show a live progress bar as bytes are received.
+- **New folder / delete** — Use **New Folder** in the toolbar, or right-click an item for the context menu (preview, download, share, delete).
+- **Share** — Click 🔐 on an item, set an expiry (hours) and an optional password, then copy the generated link.
+- **Search** — Type in the search box to instantly filter the current folder by name.
+- **Theme** — Toggle light/dark with the 🌙 button; your choice is saved in the browser.
+
+> The progress bars use native browser streaming (XHR upload events for uploads, `fetch` streaming for downloads) against the existing HTTP API — no extra setup or WebSocket server is required.
 
 ## How it works
 
