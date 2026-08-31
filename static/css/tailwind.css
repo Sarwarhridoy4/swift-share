@@ -1123,6 +1123,10 @@
     }
   }
 }
+.file-info {
+  width: 100%;
+}
+
 .file-name {
   width: 100%;
   overflow: hidden;
@@ -1132,11 +1136,14 @@
   line-height: var(--tw-leading, var(--text-sm--line-height));
   --tw-font-weight: var(--font-weight-medium);
   font-weight: var(--font-weight-medium);
+  --tw-text-color: var(--color-slate-700);
   color: var(--color-slate-700);
   &:where([data-theme=dark], [data-theme=dark] *) {
+    --tw-text-color: var(--color-slate-100);
     color: var(--color-slate-100);
   }
 }
+
 .file-size {
   font-size: var(--text-xs);
   line-height: var(--tw-leading, var(--text-xs--line-height));

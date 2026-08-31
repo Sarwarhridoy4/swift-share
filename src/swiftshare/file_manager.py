@@ -23,6 +23,21 @@ class FileManager:
             raise ValueError("Path traversal detected")
         return full_path
 
+    def _dir_size_sync(self, path: str | Path) -> int:
+        total = 0
+        try:
+            for dirpath, dirnames, filenames in os.walk(str(path)):
+                dirnames.sort()
+                for filename in filenames:
+                    abs_path = os.path.join(dirpath, filename)
+                    try:
+                        total += os.path.getsize(abs_path)
+                    except (PermissionError, OSError):
+                        continue
+        except (PermissionError, OSError):
+            pass
+        return total
+
     async def _run_sync(self, func, *args, **kwargs):
         return await asyncio.to_thread(func, *args, **kwargs)
 
@@ -41,11 +56,14 @@ class FileManager:
             for entry in entries:
                 try:
                     stat = entry.stat()
+                    size = stat.st_size
+                    if entry.is_dir(follow_symlinks=False):
+                        size = self._dir_size_sync(entry.path)
                     items.append({
                         "name": entry.name,
                         "path": str(Path(relative_path) / entry.name) if relative_path else entry.name,
-                        "is_dir": entry.is_dir(),
-                        "size": stat.st_size,
+                        "is_dir": True,
+                        "size": size,
                         "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     })
                 except (PermissionError, FileNotFoundError):
@@ -62,11 +80,14 @@ class FileManager:
 
         stat = await asyncio.to_thread(full_path.stat)
         is_dir = await asyncio.to_thread(full_path.is_dir)
+        size = stat.st_size
+        if is_dir:
+            size = await asyncio.to_thread(self._dir_size_sync, full_path)
         return {
             "name": full_path.name,
             "path": str(full_path.relative_to(self.base_dir)),
             "is_dir": is_dir,
-            "size": stat.st_size,
+            "size": size,
             "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
         }
 

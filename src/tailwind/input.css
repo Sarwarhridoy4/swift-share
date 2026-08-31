@@ -98,6 +98,7 @@
 }
 
 .file-icon { @apply text-4xl transition group-hover:scale-110; }
+.file-info { @apply w-full; }
 .file-name {
   @apply w-full truncate text-sm font-medium text-slate-700 dark:text-slate-100;
 }
