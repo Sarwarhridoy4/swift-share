@@ -62,7 +62,7 @@ class FileManager:
                     items.append({
                         "name": entry.name,
                         "path": str(Path(relative_path) / entry.name) if relative_path else entry.name,
-                        "is_dir": True,
+                        "is_dir": entry.is_dir(),
                         "size": size,
                         "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     })
