@@ -78,42 +78,37 @@ Portable_File_Transfer/        <- project source (serves the web app)
 
 ## Quick start
 
-Requires **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/). Frontend build needs [`bun`](https://bun.sh).
+Requires **Python 3.11+**, [`uv`](https://docs.astral.sh/uv/), and [`bun`](https://bun.sh).
 
-### 1. Install backend dependencies
+One-liner to get running:
 
 ```bash
-uv sync
+uv sync && cd frontend && bun install && bun run build && cd .. && uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8001
 ```
 
-### 2. Build the frontend
+Or step by step:
 
 ```bash
+# 1. Install backend dependencies
+uv sync
+
+# 2. Install frontend deps and build assets into ../static/
 cd frontend
 bun install
-bun run build          # outputs to ../static/
+bun run build
 cd ..
+
+# 3. Start the server
+uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8001
 ```
-
-### 3. Start the server
-
-```bash
-uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8000
-```
-
-Or use the CLI entrypoint:
-
-```bash
-uv run swiftshare --port 8000 --workers 1 --threads 32
-```
-
-> Port 8000 is the default. If it's already in use by another process, pick a different port (e.g. `--port 8001`):
 
 Then open one of:
 
 - `http://localhost:8001` on the same machine
 - `http://<your-lan-ip>:8001` from any device on the same network
   (the app shows this URL on the home screen, fetched from `/api/ip`)
+
+> Port 8000 is the default. If it's already in use by another process, pick a different port (e.g. `--port 8001`).
 
 ### Performance flags
 
