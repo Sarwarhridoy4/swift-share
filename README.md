@@ -24,6 +24,17 @@ network — phone, tablet, or laptop.
 - **Local-network friendly** — auto-detects the machine's LAN IP, shows the connection URL, and serves a QR code for quick mobile pairing (see `/api/ip`).
 - **Modern UI** — clean, responsive design with toast notifications, progress feedback, and smooth animations.
 - **Large file support** — chunked Socket.IO uploads and streaming HTTP downloads with stable progress for large videos and folders, up to 100 GB.
+- **Resumable downloads** — HTTP `Range` request support for pause/resume and seeking.
+- **Pagination & caching** — directory listings paginated (200 items/page) with ETag/304 support and in-memory directory cache.
+- **WebSocket streaming** — Socket.IO heartbeat, rooms, and chunked WebSocket upload/download endpoints.
+- **Multi-select** — Ctrl/Cmd+click to select multiple files; Delete key to remove selected items.
+- **QR code pairing** — scan a QR code from the header to open SwiftShare on your phone instantly.
+- **Skeleton loading** — placeholder states while directories load; debounced search (300ms).
+- **Confirm dialogs** — modal confirmations for destructive actions instead of native `confirm()`.
+- **Keyboard shortcuts** — `Ctrl/Cmd+F` to focus search, `Escape` to close modals, `Delete` to remove selected items.
+- **Accessibility** — ARIA labels, `tabindex` on file items, `role="alert"` toasts, reduced-motion support.
+- **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`; path-traversal protection; request-ID tracing.
+- **Production server** — `uvloop` + `httptools`, GZip compression, configurable backlog/keep-alive/concurrency limits.
 
 ## Screenshots
 
@@ -70,21 +81,42 @@ Portable_File_Transfer/        <- project source (serves the web app)
 Requires **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (includes uvloop + httptools for performance)
 uv sync
 
 # 2. Start the server (binds to 0.0.0.0 so devices on your LAN can reach it)
 uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8000
 ```
 
+Or use the CLI entrypoint:
+
+```bash
+uv run swiftshare --port 8000 --workers 1 --threads 32
+```
+
+> Port 8000 is the default. If it's already in use by another process, pick a different port (e.g. `--port 8001`):
+
 Then open one of:
 
-- `http://localhost:8000` on the same machine
-- `http://<your-lan-ip>:8000` from any device on the same network
+- `http://localhost:8001` on the same machine
+- `http://<your-lan-ip>:8001` from any device on the same network
   (the app shows this URL on the home screen, fetched from `/api/ip`)
 
-To share files from a different folder, change the home directory in
-`src/swiftshare/config.py` (`shared_dir`) or set the `SHARED_DIR` environment variable.
+### Performance flags
+
+| Flag                      | Default         | Description                                      |
+|---------------------------|-----------------|--------------------------------------------------|
+| `--workers`               | `1`             | Worker processes (keep 1 for Socket.IO rooms)    |
+| `--threads`               | `cpu*4 + 1`     | Thread pool size for blocking file ops           |
+| `--backlog`               | `2048`          | Socket listen backlog                            |
+| `--limit-concurrency`     | `none`          | Max concurrent requests                          |
+| `--limit-max-requests`    | `none`          | Max requests before worker restart               |
+| `--timeout-keep-alive`    | `300`           | Keep-alive timeout in seconds                    |
+| `--timeout-graceful-shutdown` | `600`      | Graceful shutdown timeout in seconds             |
+| `--no-access-log`         | `false`         | Disable access log for better throughput         |
+| `--log-level`             | `warning`       | Uvicorn log level                                |
+
+`uvloop` and `httptools` are used by default for the event loop and HTTP parser.
 
 ## Configuration
 
@@ -105,25 +137,36 @@ Example:
 SHARED_DIR=/path/to/my/files PORT=8080 uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8080
 ```
 
-## Frontend (Tailwind via Bun)
+## Frontend (React + Vite + Tailwind CSS v4)
 
-The UI is styled with [Tailwind CSS](https://tailwindcss.com) (v4), built with [Bun](https://bun.sh).
-The compiled stylesheet (`static/css/tailwind.css`) is committed, so the server works with
-no frontend build step. Only rebuild it when you change the UI.
+The UI is a React 19 SPA built with [Vite](https://vitejs.dev) and styled with [Tailwind CSS](https://tailwindcss.com) (v4). The frontend lives in `frontend/` and builds into `static/` so the FastAPI server serves it with no separate frontend server.
 
 ```bash
-# Install frontend tooling (needs Bun)
+# 1. Install frontend dependencies (needs Bun)
+cd frontend
 bun install
 
-# Build the CSS once
+# 2. Build the frontend (outputs to ../static/)
 bun run build
 
-# Or watch for changes during development
-bun run dev
+# 3. Start the backend server
+cd ..
+uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8001
 ```
 
-Source styles live in `src/tailwind/input.css` (Tailwind directives, theme tokens, and the
-custom utilities for the file list, context menu, and toasts).
+Source files:
+- `frontend/src/` — React components, types, hooks, and Tailwind source CSS
+- `frontend/vite.config.ts` — Vite config (builds to `../static/`)
+- `frontend/postcss.config.js` — Tailwind CSS PostCSS plugin
+- `static/index.html` — Vite-built HTML entry (served by FastAPI)
+- `static/assets/` — compiled CSS and JS bundles (generated by `bun run build`)
+
+### Frontend scripts
+
+| Script                   | Description                                |
+|--------------------------|--------------------------------------------|
+| `bun run dev`            | Start Vite dev server (port 5173)          |
+| `bun run build`          | Build production assets into `../static/`  |
 
 ## Project structure
 
@@ -171,13 +214,34 @@ All file operations are rooted at the `shared/` directory.
 | GET    | `/api/files/preview?path=`     | Read text preview                    |
 | GET    | `/api/files/mime-type?path=`   | Get MIME type                        |
 | POST   | `/api/upload/`                 | Upload file(s) (multipart form)      |
+| POST   | `/api/upload/chunk`            | Resumable chunked upload             |
 | POST   | `/api/shares/`                 | Create a share link                  |
 | GET    | `/api/shares/`                 | List active shares                   |
 | GET    | `/api/shares/{id}`             | Resolve a share (optional `password`)|
 | DELETE | `/api/shares/{id}`             | Delete a share                       |
 | GET    | `/api/ip`                      | LAN IP + port for mobile pairing     |
+| GET    | `/api/health`                  | Server health + uptime               |
 
 Socket.IO is mounted at `/socket.io` and is used for real-time transfer progress and chunked file transfers.
+
+### WebSocket events (Socket.IO)
+
+| Event                  | Direction | Payload                                      |
+|------------------------|-----------|----------------------------------------------|
+| `connect` / `disconnect` | both   | connection lifecycle                         |
+| `join_room` / `leave_room` | client | `{ room: "transfers" \| "files" }`          |
+| `ping` / `pong`        | both      | heartbeat                                    |
+| `transfer:started`     | server    | `{ transfer_id, filename, total, percent }`  |
+| `transfer:progress`    | server    | `{ transfer_id, loaded, total, percent }`    |
+| `transfer:completed`   | server    | `{ transfer_id, filename, percent }`         |
+| `transfer:error`       | server    | `{ transfer_id, error }`                     |
+| `upload:progress`      | server    | `{ transfer_id, filename, chunk_index, progress }` |
+| `upload:complete`      | server    | `{ transfer_id, filename, path, size }`      |
+| `upload:error`         | server    | `{ transfer_id, error }`                     |
+| `download:chunk`       | server    | `{ transfer_id, chunk_index, filename, size, data }` |
+| `download:complete`    | server    | `{ transfer_id }`                            |
+| `download:error`       | server    | `{ transfer_id, error }`                     |
+| `file:changed`         | server    | `{ action, path, item, timestamp }`          |
 
 ## Development
 
@@ -185,8 +249,15 @@ Socket.IO is mounted at `/socket.io` and is used for real-time transfer progress
 # Run with auto-reload
 uv run uvicorn src.swiftshare.main:app --reload --host 0.0.0.0 --port 8000
 
+# Run via CLI entrypoint (recommended for production)
+uv run swiftshare --host 0.0.0.0 --port 8000
+
 # Run the test suite
 uv run pytest
+
+# Rebuild Tailwind CSS (needed only when changing src/tailwind/input.css)
+bun install
+bun run build:css
 ```
 
 ## Security notes

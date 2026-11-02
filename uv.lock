@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -605,36 +605,34 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "fastapi" },
+    { name = "httptools" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
     { name = "python-socketio" },
     { name = "qrcode" },
     { name = "uvicorn" },
+    { name = "uvloop" },
 ]
 
 [package.optional-dependencies]
 desktop = [
     { name = "pywebview" },
 ]
-performance = [
-    { name = "httptools" },
-    { name = "uvloop" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
-    { name = "httptools", marker = "extra == 'performance'", specifier = ">=0.4.0" },
+    { name = "httptools", specifier = ">=0.4.0" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "python-socketio", specifier = ">=5.10.0" },
     { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=5.0" },
     { name = "qrcode", specifier = ">=8.2" },
     { name = "uvicorn", specifier = ">=0.52.4" },
-    { name = "uvloop", marker = "extra == 'performance'", specifier = ">=0.21.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
 ]
-provides-extras = ["desktop", "performance"]
+provides-extras = ["desktop"]
 
 [[package]]
 name = "typing-extensions"

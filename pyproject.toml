@@ -15,6 +15,8 @@ dependencies = [
     "python-socketio>=5.10.0",
     "qrcode>=8.2",
     "uvicorn>=0.52.4",
+    "uvloop>=0.21.0",
+    "httptools>=0.4.0",
 ]
 
 [project.scripts]
@@ -23,10 +25,6 @@ swiftshare = "swiftshare.__main__:main"
 [project.optional-dependencies]
 desktop = [
     "pywebview>=5.0",
-]
-performance = [
-    "uvloop>=0.21.0",
-    "httptools>=0.4.0",
 ]
 
 [tool.uv]

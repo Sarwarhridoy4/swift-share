@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--max-upload-size", type=int, default=settings.max_upload_size, help="Maximum upload size in bytes")
     parser.add_argument("--enable-auth", action="store_true", default=settings.enable_auth, help="Enable basic auth")
     parser.add_argument("--share-expiry-hours", type=int, default=settings.share_expiry_hours, help="Default share expiry in hours")
-    parser.add_argument("--workers", type=int, default=_detect_workers(), help="Number of worker processes")
+    parser.add_argument("--workers", type=int, default=1, help="Number of worker processes (1 for Socket.IO)")
     parser.add_argument("--threads", type=int, default=min(32, (_detect_workers() * 4) + 1), help="Thread pool size")
     parser.add_argument("--no-access-log", action="store_true", help="Disable access log for better performance")
     parser.add_argument("--log-level", default="warning", help="Log level (default: warning)")
@@ -31,7 +31,6 @@ def main():
     parser.add_argument("--limit-max-requests", type=int, default=None, help="Max requests before worker restart")
     parser.add_argument("--timeout-keep-alive", type=int, default=300, help="Keep-alive timeout in seconds")
     parser.add_argument("--timeout-graceful-shutdown", type=int, default=600, help="Graceful shutdown timeout in seconds")
-    parser.add_argument("--no-compression", action="store_true", help="Disable response compression")
 
     args = parser.parse_args()
 
@@ -44,19 +43,14 @@ def main():
 
     os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
-    os.environ.setdefault("UVICORN_CONNECTION_LIMIT", str(args.limit_concurrency or 0))
-    os.environ.setdefault("UVICORN_MAX_REQUESTS", str(args.limit_max_requests or 0))
-
-    loop = "uvloop" if _uvloop_available() else "asyncio"
-    http = "httptools" if _httptools_available() else "h11"
 
     config = uvicorn.Config(
         app,
         host=args.host,
         port=args.port,
         workers=args.workers,
-        loop=loop,
-        http=http,
+        loop="uvloop",
+        http="httptools",
         access_log=not args.no_access_log,
         log_level=args.log_level,
         server_header=False,
@@ -68,31 +62,14 @@ def main():
         timeout_graceful_shutdown=args.timeout_graceful_shutdown,
     )
 
-    if not args.no_compression:
-        try:
-            from fastapi.middleware.gzip import GZipMiddleware
-            app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)
-        except Exception:
-            pass
+    try:
+        from fastapi.middleware.gzip import GZipMiddleware
+        app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)
+    except Exception:
+        pass
 
     server = uvicorn.Server(config)
     server.run()
-
-
-def _uvloop_available() -> bool:
-    try:
-        import importlib.util
-        return importlib.util.find_spec("uvloop") is not None  # type: ignore[import]
-    except (ImportError, ValueError):
-        return False
-
-
-def _httptools_available() -> bool:
-    try:
-        import importlib.util
-        return importlib.util.find_spec("httptools") is not None  # type: ignore[import]
-    except (ImportError, ValueError):
-        return False
 
 
 if __name__ == "__main__":

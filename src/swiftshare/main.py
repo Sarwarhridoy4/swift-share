@@ -1,13 +1,17 @@
-from fastapi import FastAPI
+import time
+import uuid
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pathlib import Path
 from .config import settings
 from .routers import files, upload, shares
 from .socketio_server import socket_app
 
 app = FastAPI(title="Portable File Transfer", version="1.0.0")
+
+_start_time = time.monotonic()
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +20,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_id_and_security_headers(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    start = time.monotonic()
+
+    response = await call_next(request)
+
+    duration = (time.monotonic() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Process-Time"] = f"{duration:.2f}ms"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "private, max-age=0"
+    return response
+
+
+@app.get("/api/health")
+async def health():
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "shared_dir": str(settings.shared_dir),
+        "uptime_seconds": round(time.monotonic() - _start_time, 2),
+    }
+
 
 app.include_router(files.router, prefix="/api/files", tags=["files"])
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
