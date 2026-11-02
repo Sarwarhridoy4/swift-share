@@ -126,6 +126,61 @@ Then open one of:
 
 `uvloop` and `httptools` are used by default for the event loop and HTTP parser.
 
+### uv configuration
+
+uv settings live in `pyproject.toml`:
+
+```toml
+[project]
+name = "swiftshare"
+requires-python = ">=3.11"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "fastapi>=0.141.1",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "python-socketio>=5.10.0",
+    "qrcode>=8.2",
+    "uvicorn>=0.52.4",
+    "uvloop>=0.21.0",
+    "httptools>=0.4.0",
+]
+
+[project.scripts]
+swiftshare = "swiftshare.__main__:main"
+
+[project.optional-dependencies]
+desktop = [
+    "pywebview>=5.0",
+]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
+```
+
+Install or update dependencies:
+
+```bash
+uv sync
+```
+
+Add a new dependency:
+
+```bash
+uv add <package>
+```
+
+Remove a dependency:
+
+```bash
+uv remove <package>
+```
+
+
 ## Configuration
 
 Settings can be overridden with environment variables (or a `.env` file):
