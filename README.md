@@ -78,13 +78,26 @@ Portable_File_Transfer/        <- project source (serves the web app)
 
 ## Quick start
 
-Requires **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/).
+Requires **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/). Frontend build needs [`bun`](https://bun.sh).
+
+### 1. Install backend dependencies
 
 ```bash
-# 1. Install dependencies (includes uvloop + httptools for performance)
 uv sync
+```
 
-# 2. Start the server (binds to 0.0.0.0 so devices on your LAN can reach it)
+### 2. Build the frontend
+
+```bash
+cd frontend
+bun install
+bun run build          # outputs to ../static/
+cd ..
+```
+
+### 3. Start the server
+
+```bash
 uv run uvicorn src.swiftshare.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -174,28 +187,52 @@ Source files:
 Portable_File_Transfer/
 ├── AGENTS.md
 ├── pyproject.toml
-├── package.json             # Bun/Tailwind frontend tooling
-├── bun.lock                 # Bun lockfile
 ├── README.md
-├── src/
-│   ├── swiftshare/          # FastAPI backend
-│   │   ├── __main__.py       # CLI entrypoint
-│   │   ├── main.py            # FastAPI app, static serving, /api/ip
-│   │   ├── config.py          # Configuration (pydantic-settings)
-│   │   ├── models.py          # Pydantic models
-│   │   ├── file_manager.py    # File operations (browse/upload/download/delete)
-│   │   ├── share_manager.py   # Share-link logic (expiry, passwords, counts)
-│   │   ├── socketio_server.py # Socket.IO transfer events
-│   │   └── routers/
-│   │       ├── files.py       # File API routes
-│   │       ├── upload.py      # Upload API route
-│   │       └── shares.py      # Share API routes
-│   └── tailwind/
-│       └── input.css          # Tailwind source (theme + component styles)
-├── static/
-│   ├── index.html
-│   ├── css/tailwind.css       # Compiled Tailwind output (committed)
-│   └── js/app.js
+├── uv.lock
+├── frontend/                 # React 19 + Vite + Tailwind CSS v4
+│   ├── index.html            # Vite HTML entry
+│   ├── vite.config.ts        # Vite config (builds to ../static/)
+│   ├── postcss.config.js     # Tailwind CSS PostCSS plugin
+│   ├── package.json
+│   ├── bun.lockb
+│   ├── tsconfig.json
+│   └── src/
+│       ├── main.tsx          # React entry point
+│       ├── index.css         # Tailwind CSS source
+│       ├── App.tsx           # Root component
+│       ├── lib/utils.ts      # Format helpers, file icons
+│       ├── types.ts          # TypeScript types
+│       └── components/       # React components
+│           ├── Header.tsx
+│           ├── Toolbar.tsx
+│           ├── StatsBar.tsx
+│           ├── Breadcrumb.tsx
+│           ├── FileBrowser.tsx
+│           ├── FileItem.tsx
+│           ├── TransferPanel.tsx
+│           ├── ToastContainer.tsx
+│           ├── QRModal.tsx
+│           ├── NewFolderModal.tsx
+│           ├── ShareModal.tsx
+│           ├── PreviewModal.tsx
+│           ├── ConfirmModal.tsx
+│           └── ContextMenu.tsx
+├── src/swiftshare/          # FastAPI backend
+│   ├── __main__.py       # CLI entrypoint
+│   ├── main.py            # FastAPI app, static serving, /api/ip
+│   ├── config.py          # Configuration (pydantic-settings)
+│   ├── models.py          # Pydantic models
+│   ├── file_manager.py    # File operations (browse/upload/download/delete)
+│   ├── share_manager.py   # Share-link logic (expiry, passwords, counts)
+│   ├── socketio_server.py # Socket.IO transfer events
+│   └── routers/
+│       ├── files.py       # File API routes
+│       ├── upload.py      # Upload API route
+│       └── shares.py      # Share API routes
+├── static/                  # Served by FastAPI (built by frontend)
+│   ├── index.html          # Vite-built HTML entry
+│   └── assets/            # Compiled CSS and JS bundles
+├── shared/                  # Home directory for the file browser
 └── tests/test_api.py
 ```
 
@@ -245,6 +282,8 @@ Socket.IO is mounted at `/socket.io` and is used for real-time transfer progress
 
 ## Development
 
+### Backend
+
 ```bash
 # Run with auto-reload
 uv run uvicorn src.swiftshare.main:app --reload --host 0.0.0.0 --port 8000
@@ -254,10 +293,23 @@ uv run swiftshare --host 0.0.0.0 --port 8000
 
 # Run the test suite
 uv run pytest
+```
 
-# Rebuild Tailwind CSS (needed only when changing src/tailwind/input.css)
+### Frontend
+
+```bash
+cd frontend
+
+# Install dependencies (first time only)
 bun install
-bun run build:css
+
+# Start Vite dev server (proxies API to :8001)
+bun run dev
+
+# Build production assets into ../static/
+bun run build
+
+cd ..
 ```
 
 ## Security notes
